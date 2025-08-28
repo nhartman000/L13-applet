@@ -13,15 +13,16 @@ function resume() { paused = false; }
 
 function sendPrompt() {
   const input = document.getElementById("userInput").value;
-  fetch("/run", {
+  fetch("/multi-agent", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ seed: { prompt: input } })
+    body: JSON.stringify({ prompt: input })
   })
   .then(res => res.json())
   .then(data => {
-    document.getElementById("responses").innerHTML = data.history.map(h =>
-      `<div><strong>Pass ${h.pass_id}:</strong> ${JSON.stringify(h.data)}</div>`
-    ).join("");
+    document.querySelector("#agentA span").innerText = data.agent_a.response;
+    document.querySelector("#agentB span").innerText = data.agent_b.response;
+    document.querySelector("#kernel span").innerText = data.kernel.decision + "\n" +
+      data.kernel.emoji_thread.join(" → ");
   });
 }

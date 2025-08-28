@@ -1,12 +1,31 @@
-import os
+from fastapi import FastAPI, Request
+from backend.kernel import auto13_run
+from backend.agents import query_agent
+import time
 
-def run_wizard():
-    print("🧠 Welcome to the L13 Applet Installer")
-    port = input("Choose a port (default 8000): ") or "8000"
-    print(f"\nInstalling dependencies...")
-    os.system("pip install -r requirements.txt")
-    print(f"\nStarting server on port {port}...")
-    os.system(f"uvicorn backend.main:app --port {port} --reload")
+app = FastAPI()
+start_time = time.time()
 
-if __name__ == "__main__":
-    run_wizard()
+@app.post("/multi-agent")
+async def multi_agent_chat(req: Request):
+    body = await req.json()
+    prompt = body.get("prompt", "")
+    seed = body.get("seed", {"prompt": prompt})
+
+    # Query external agents
+    agent_a = await query_agent("GPT-A", prompt)
+    agent_b = await query_agent("GPT-B", prompt)
+
+    # Run kernel logic
+    kernel_result = auto13_run(seed)
+
+    # Compute elapsed time
+    elapsed = int(time.time() - start_time)
+
+    return {
+        "elapsed": elapsed,
+        "user_prompt": prompt,
+        "agent_a": agent_a,
+        "agent_b": agent_b,
+        "kernel": kernel_result
+    }

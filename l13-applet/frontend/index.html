@@ -1,17 +1,25 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>L13 Applet</title>
+  <title>L13 Multi-Agent Applet</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <h1>🧠 L13 Multi-Agent Dialogue</h1>
+
   <textarea id="userInput" placeholder="Enter your prompt..."></textarea>
   <button onclick="sendPrompt()">Send</button>
-  <div id="responses"></div>
-  <div id="timer">⏱️ Elapsed: 00:00</div>
+
+  <div id="responses">
+    <div id="agentA" class="response-box">🤖 GPT-A: <span></span></div>
+    <div id="agentB" class="response-box">🧠 GPT-B: <span></span></div>
+    <div id="kernel" class="response-box">🌀 Kernel: <span></span></div>
+  </div>
+
+  <div id="timer">⏱️ Elapsed: 0s</div>
   <button onclick="pause()">⏸ Pause</button>
   <button onclick="resume()">▶ Resume</button>
+
   <script src="app.js"></script>
 </body>
 </html>
