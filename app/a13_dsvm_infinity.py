@@ -1,6 +1,9 @@
 from __future__ import annotations
-import hashlib, json, math, random
+import hashlib, json, math, random, time, logging
 from typing import Dict, Any, Tuple, List
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 DEFAULTS = dict(
     p=2, R=2.0, epsilon=0.1, tau=0.05, sigma=0.0, max_iter=1024
@@ -39,26 +42,72 @@ def a13_run(seed: Dict[str, Any], params: Dict[str, Any]=None,
             log_path: str = None) -> Dict[str, Any]:
     P = {**DEFAULTS, **(params or {})}
     history, prev_state, decision = [], None, "continue"
+    start_time = time.time()
+
+    logger.info(f"Starting A13 run with params: {P}")
 
     for k in range(1, 14):
-        state = dict(pass_id=k, data=dict(seed))
+        pass_start = time.time()
+        state = dict(
+            pass_id=k, 
+            data=dict(seed),
+            timestamp=pass_start,
+            pass_name=f"A{k}"
+        )
+        
         if mirror_pairs:
             rmax = max(dsvm_residual(a, b) for (a, b) in mirror_pairs)
             state["dsvm_r"] = rmax
+            logger.info(f"A{k}: DSVM residual = {rmax:.6f}")
             if rmax > P["tau"]:
-                decision = "escape_dsvm"; history.append(state); break
+                decision = "escape_dsvm"
+                state["termination_reason"] = f"DSVM residual {rmax:.6f} > tau {P['tau']}"
+                history.append(state)
+                logger.info(f"A{k}: Terminating due to DSVM escape")
+                break
+                
         delta = compute_delta(state["data"], prev_state)
-        state["delta"] = delta; history.append(state); prev_state = state["data"]
+        state["delta"] = delta
+        state["duration_ms"] = (time.time() - pass_start) * 1000
+        
+        logger.info(f"A{k}: Delta = {delta:.6f}")
+        
+        history.append(state)
+        prev_state = state["data"]
+        
         if delta <= P["epsilon"]:
-            decision = "converged_a13"; break
+            decision = "converged_a13"
+            state["termination_reason"] = f"Delta {delta:.6f} <= epsilon {P['epsilon']}"
+            logger.info(f"A{k}: Converged")
+            break
 
     if decision not in ("converged_a13","escape_dsvm"):
+        logger.info("Entering Julia infinity analysis")
         c = encode_context(seed)
         outcome, iters = julia_infinity(c, p=P["p"], R=P["R"], max_iter=P["max_iter"], sigma=P["sigma"])
         decision = f"infinity_{outcome}"
-        history.append({"pass_id":"∞","c":(c.real,c.imag),"outcome":outcome,"iters":iters})
+        infinity_state = {
+            "pass_id": "∞",
+            "pass_name": "Infinity",
+            "c": (c.real, c.imag),
+            "outcome": outcome,
+            "iters": iters,
+            "timestamp": time.time()
+        }
+        history.append(infinity_state)
+        logger.info(f"Julia analysis: {outcome} after {iters} iterations")
 
-    result = {"decision": decision, "params": P, "history": history}
+    total_duration = time.time() - start_time
+    result = {
+        "decision": decision, 
+        "params": P, 
+        "history": history,
+        "total_duration_ms": total_duration * 1000,
+        "total_passes": len([h for h in history if h.get("pass_id") != "∞"])
+    }
+    
+    logger.info(f"A13 run completed: {decision} in {total_duration:.3f}s")
+    
     if log_path:
         with open(log_path, "a", encoding="utf-8") as f:
             f.write(json.dumps(result, ensure_ascii=False) + "\n")
