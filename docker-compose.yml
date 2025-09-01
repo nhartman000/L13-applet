@@ -14,8 +14,16 @@ services:
     build: { context: ./app }
     restart: unless-stopped
     ports: ["8000:8000"]
+    environment:
+      - GPT_URL=${GPT_URL}
+      - GPT_BEARER=${GPT_BEARER}
+      - APPLET_STUB=${APPLET_STUB}
 
   applet:
     build: { context: ./applet }
     restart: unless-stopped
     ports: ["9001:9001"]
+    environment:
+      - GPT_URL=${GPT_URL}
+      - GPT_BEARER=${GPT_BEARER}
+      - APPLET_STUB=${APPLET_STUB}
