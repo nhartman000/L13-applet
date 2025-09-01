@@ -1,4 +1,21 @@
-version: '3.9'
 services:
+  caddy:
+    image: caddy:2.8
+    restart: unless-stopped
+    ports: ["80:80","443:443"]
+    environment:
+      - DOMAIN=${DOMAIN}
+      - EMAIL=${EMAIL}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./pwa:/srv/pwa:ro
+
   kernel:
-    build: ./app
+    build: { context: ./app }
+    restart: unless-stopped
+    ports: ["8000:8000"]
+
+  applet:
+    build: { context: ./applet }
+    restart: unless-stopped
+    ports: ["9001:9001"]
