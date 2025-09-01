@@ -1,0 +1,10 @@
+{
+  "🔁¹³": {
+    "name": "Automaton 13",
+    "action": "run_13_pass_loop"
+  },
+  "♾️": {
+    "name": "Infinity Mode",
+    "action": "enter_julia_policy"
+  }
+}
