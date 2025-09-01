@@ -1,15 +1,11 @@
-import hashlib, json, logging, asyncio
-import httpx
-from typing import Dict, Any, List
+import hashlib, json
+from typing import Dict, Any
 from starlette.applications import Starlette
-from starlette.responses import JSONResponse, PlainTextResponse
+from starlette.responses import JSONResponse
 from starlette.routing import Route
 from starlette.requests import Request
 from starlette.middleware.cors import CORSMiddleware
-from a13_dsvm_infinity import a13_run
-
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+from a13_dsvm_infinity import a13_run, encode_context, DEFAULTS
 
 APPLET_REGISTRY: Dict[str, Dict[str, str]] = {}
 
@@ -19,7 +15,7 @@ async def heartbeat(request: Request):
 async def schema(request: Request):
     return JSONResponse({
         "service": "L13 Kernel Wrapper (Starlette)",
-        "version": "1.0.0",
+        "version": "1.0.1",
         "endpoints": ["GET /heartbeat", "GET /schema", "POST /run", "POST /register_applet"]
     })
 
@@ -32,45 +28,21 @@ async def register_applet(request: Request):
     if token: APPLET_REGISTRY[name]["token"] = token
     return JSONResponse({"ok": True, "registered": list(APPLET_REGISTRY.keys())})
 
-async def fan_out_to_applets(seed: Dict[str, Any], applet_names: List[str] = None) -> Dict[str, Any]:
-    if not applet_names:
-        applet_names = list(APPLET_REGISTRY.keys())
-    
-    fanout_results = {}
-    
-    for name in applet_names:
-        if name not in APPLET_REGISTRY:
-            fanout_results[name] = {"error": f"Applet '{name}' not registered"}
-            continue
-            
-        applet_config = APPLET_REGISTRY[name]
-        endpoint = applet_config["endpoint"]
-        
-        try:
-            headers = {"Content-Type": "application/json"}
-            if "token" in applet_config:
-                headers["Authorization"] = f"Bearer {applet_config['token']}"
-            
-            payload = {"prompt": json.dumps(seed)}
-            
-            async with httpx.AsyncClient(timeout=30.0) as client:
-                response = await client.post(endpoint, json=payload, headers=headers)
-                response.raise_for_status()
-                fanout_results[name] = response.json()
-                
-        except Exception as e:
-            logger.error(f"Error calling applet '{name}' at {endpoint}: {str(e)}")
-            fanout_results[name] = {"error": str(e)}
-    
-    return fanout_results
+def _extract_julia_c(history, seed):
+    for h in history or []:
+        if h.get("pass_id") == "∞" and "c" in h:
+            cre, cim = h["c"]
+            return float(cre), float(cim)
+    c = encode_context(seed or {})
+    return float(c.real), float(c.imag)
 
 async def run_kernel(request: Request):
     body = await request.json()
     seed        = body.get("seed", {})
-    params      = body.get("params", {})
+    params      = {**DEFAULTS, **(body.get("params", {}) or {})}
     anchors_in  = body.get("anchors", [])
     state_vecs  = body.get("state_vecs", {})
-    applet_names = body.get("applets", [])
+    fanout      = body.get("fanout_applets", [])
 
     mirror_pairs = []
     for a in anchors_in:
@@ -78,26 +50,28 @@ async def run_kernel(request: Request):
         cur = state_vecs.get(name, target)
         mirror_pairs.append((cur, target))
 
-    logger.info(f"Running A13 kernel with seed: {seed}")
     result = a13_run(seed=seed, params=params, mirror_pairs=mirror_pairs)
-    
-    broker_fanout = {}
-    if APPLET_REGISTRY or applet_names:
-        logger.info(f"Fanning out to applets: {applet_names or list(APPLET_REGISTRY.keys())}")
-        broker_fanout = await fan_out_to_applets(seed, applet_names)
+    run_id = hashlib.sha1(json.dumps(seed, sort_keys=True).encode("utf-8")).hexdigest()
+
+    active_attractor = (body.get("params", {}) or {}).get("attractor", "julia").lower()
+    if active_attractor not in ("julia", "mandelbulb"):
+        active_attractor = "julia"
+
+    cre, cim = _extract_julia_c(result.get("history"), seed)
+    viz = {
+        "attractor": active_attractor,
+        "julia": {"c": [cre, cim], "p": int(params.get("p", 2)), "R": float(params.get("R", 2.0))},
+        "mandelbulb": {"p": 8, "max_steps": 96, "bailout": 8.0}  # visualization defaults
+    }
 
     payload = {
-        "run_id": hashlib.sha1(json.dumps(seed, sort_keys=True).encode("utf-8")).hexdigest(),
-        "seed": seed, 
+        "run_id": run_id,
         "decision": result.get("decision"),
-        "params": params, 
+        "params": params,
         "history": result.get("history", []),
-        "broker": {
-            "fanout": broker_fanout
-        }
+        "viz": viz,
+        "broker": {"applets_requested": fanout, "fanout": []}  # (hook up later)
     }
-    
-    logger.info(f"A13 kernel completed with decision: {result.get('decision')}")
     return JSONResponse(payload)
 
 routes = [

@@ -1,1 +1,71 @@
-<!doctype html><html><body><h1>L13 PWA</h1></body></html>
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>L13 Visualizer</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="theme-color" content="#0f172a">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header>
+  <h1>🧠 L13 Visualizer</h1>
+  <div class="controls">
+    <label>Kernel URL</label>
+    <input id="url" value="/kernel/run" />
+    <button id="runBtn">Run L13</button>
+    <select id="vizMode">
+      <option value="auto">Auto (from kernel)</option>
+      <option value="julia">Force: Julia</option>
+      <option value="mandelbulb">Force: Mandelbulb</option>
+    </select>
+  </div>
+</header>
+
+<main class="grid">
+  <section class="card">
+    <h2>Payload</h2>
+    <textarea id="payload" rows="13"></textarea>
+    <div class="row">
+      <button id="presetSample">Preset</button>
+      <button id="presetEmpty" class="secondary">Empty</button>
+      <button id="saveBtn" class="secondary">Save</button>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Decision & Metrics</h2>
+    <div id="decision" class="pill">&mdash;</div>
+    <div class="metrics">
+      <div><span>&Delta; (last)</span><strong id="deltaVal">&mdash;</strong></div>
+      <div><span>DSVM r (last)</span><strong id="rVal">&mdash;</strong></div>
+      <div><span>&infin; outcome</span><strong id="infVal">&mdash;</strong></div>
+    </div>
+    <h3>Pass Timeline</h3>
+    <div id="timeline" class="timeline"></div>
+  </section>
+
+  <section class="card">
+    <h2>Attractor View</h2>
+    <canvas id="viz" width="720" height="480"></canvas>
+    <div class="row small" id="juliaControls" style="display:flex">
+      <label>Re(c)</label><input id="cre" type="number" step="0.001" />
+      <label>Im(c)</label><input id="cim" type="number" step="0.001" />
+      <label>Zoom</label><input id="zoom" type="range" min="0.5" max="20" step="0.1" value="1.2" />
+    </div>
+    <div class="row small" id="bulbControls" style="display:none">
+      <label>Orbit</label><input id="orbit" type="range" min="-3.14" max="3.14" step="0.01" value="0.8" />
+      <label>Zoom</label><input id="bzoom" type="range" min="0.5" max="3" step="0.01" value="1.0" />
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Raw Response</h2>
+    <pre id="resp">&mdash;</pre>
+  </section>
+</main>
+
+<script src="app.js"></script>
+</body>
+</html>
