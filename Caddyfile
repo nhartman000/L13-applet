@@ -1,3 +1,10 @@
 {$DOMAIN} {
-  reverse_proxy kernel:8000
+  handle /kernel/* {
+    reverse_proxy kernel:8000
+  }
+  
+  handle {
+    root * /srv/pwa
+    file_server
+  }
 }
