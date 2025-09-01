@@ -1,6 +1,6 @@
 FROM python:3.12-slim
 WORKDIR /applet
-COPY requirements.txt .
+COPY ../requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 COPY applet_generic.py ./
 EXPOSE 9001

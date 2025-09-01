@@ -42,8 +42,9 @@ async def run_kernel(request: Request):
         mirror_pairs.append((cur, target))
 
     result = a13_run(seed=seed, params=params, mirror_pairs=mirror_pairs)
+    seed_hash = str(hash(frozenset(seed.items()) if isinstance(seed, dict) else seed))
     payload = {
-        "run_id": hashlib.sha1(json.dumps(seed, sort_keys=True).encode("utf-8")).hexdigest(),
+        "run_id": hashlib.sha1(seed_hash.encode("utf-8")).hexdigest(),
         "seed": seed, "decision": result.get("decision"),
         "params": params, "history": result.get("history", [])
     }
